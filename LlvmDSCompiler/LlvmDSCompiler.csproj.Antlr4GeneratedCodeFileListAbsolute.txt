@@ -1,0 +1,6 @@
+C:\Users\pratapa.ADS\source\repos\LlvmDSCompiler\LlvmDSCompiler\obj\Debug\netcoreapp3.1\DesignScriptLexer.cs
+C:\Users\pratapa.ADS\source\repos\LlvmDSCompiler\LlvmDSCompiler\obj\Debug\netcoreapp3.1\DesignScriptParser.cs
+C:\Users\pratapa.ADS\source\repos\LlvmDSCompiler\LlvmDSCompiler\obj\Debug\netcoreapp3.1\DesignScriptListener.cs
+C:\Users\pratapa.ADS\source\repos\LlvmDSCompiler\LlvmDSCompiler\obj\Debug\netcoreapp3.1\DesignScriptBaseListener.cs
+C:\Users\pratapa.ADS\source\repos\LlvmDSCompiler\LlvmDSCompiler\obj\Debug\netcoreapp3.1\DesignScriptVisitor.cs
+C:\Users\pratapa.ADS\source\repos\LlvmDSCompiler\LlvmDSCompiler\obj\Debug\netcoreapp3.1\DesignScriptBaseVisitor.cs
