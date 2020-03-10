@@ -15,6 +15,8 @@ namespace LlvmDSCompiler
         private LLVMValueRef function;
         private string functionName;
         private LLVMTypeRef returnType;
+        private LLVMPassManagerRef passManager;
+        private LLVMExecutionEngineRef engine;
 
         private readonly Dictionary<string, LLVMValueRef> namedValues = new Dictionary<string, LLVMValueRef>();
 
@@ -26,6 +28,41 @@ namespace LlvmDSCompiler
             module = LLVM.ModuleCreateWithName("DesignScript");
             builder = LLVM.CreateBuilder();
 
+            LLVM.LinkInMCJIT();
+            LLVM.InitializeX86TargetInfo();
+            LLVM.InitializeX86Target();
+            LLVM.InitializeX86TargetMC();
+
+            LLVM.InitializeX86AsmParser();
+            LLVM.InitializeX86AsmPrinter();
+
+            LLVMMCJITCompilerOptions options = new LLVMMCJITCompilerOptions { NoFramePointerElim = 1 };
+            LLVM.InitializeMCJITCompilerOptions(options);
+            if (LLVM.CreateExecutionEngineForModule(out engine, module, out var errorMessage).Value == 1)
+            {
+                Console.WriteLine(errorMessage);
+                return new NullCompilerResult();
+            }
+
+#region Add optimization passes
+            // Create a function pass manager for this engine
+            passManager = LLVM.CreateFunctionPassManagerForModule(module);
+
+            // Do simple "peephole" optimizations and bit-twiddling optzns.
+            LLVM.AddInstructionCombiningPass(passManager);
+
+            // Reassociate expressions.
+            LLVM.AddReassociatePass(passManager);
+
+            // Eliminate Common SubExpressions.
+            LLVM.AddGVNPass(passManager);
+
+            // Simplify the control flow graph (deleting unreachable blocks, etc).
+            LLVM.AddCFGSimplificationPass(passManager);
+
+            LLVM.InitializeFunctionPassManager(passManager);
+#endregion
+
             base.VisitProgram(context);
 
             if (LLVM.VerifyModule(module, LLVMVerifierFailureAction.LLVMPrintMessageAction, out var error) != success)
@@ -34,6 +71,8 @@ namespace LlvmDSCompiler
             }
 
             LLVM.DumpModule(module);
+            LLVM.DisposeBuilder(builder);
+            LLVM.DisposeExecutionEngine(engine);
 
             return new NullCompilerResult();
         }
@@ -66,6 +105,8 @@ namespace LlvmDSCompiler
 
             // Validate the generated code, checking for consistency.
             LLVM.VerifyFunction(function, LLVMVerifierFailureAction.LLVMPrintMessageAction);
+
+            LLVM.RunFunctionPassManager(this.passManager, function);
 
             this.valueStack.Push(function);
 

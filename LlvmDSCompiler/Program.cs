@@ -11,9 +11,12 @@ namespace LlvmDSCompiler
             var text = @"
 def foo : double(a : double, b : double)
 {
-    return a*a + 3.0*b;
+    return a*a + b*b - 2.0*a*b;
 }
-x = foo(3.0, 4.0);";
+def bar : double(a : double)
+{
+    return foo(a, 1.0 + 3.0) + 3.0*a;
+}";
             AntlrInputStream inputStream = new AntlrInputStream(text);
             DesignScriptLexer designScriptLexer = new DesignScriptLexer(inputStream);
             designScriptLexer.RemoveErrorListeners();
@@ -29,6 +32,7 @@ x = foo(3.0, 4.0);";
             var visitor = new DSVisitor();
             //var assocBlk = programContext.Accept(visitor);
             visitor.VisitProgram(programContext);
+
 
         }
     }
