@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using RGiesecke.DllExport;
 
 namespace Vector
 {
     public class Vector
     {
-        [DllExport("VectorByCoordinates", CallingConvention.Cdecl)]
         public static double ByCoordinates(double x, double y, double z)
         {
             //return new Vector(x, y, z);
@@ -20,7 +18,6 @@ namespace Vector
             Z = z;
         }
 
-        [DllExport("VectorAdd", CallingConvention.Cdecl)]
         public Vector Add(Vector v)
         {
             return new Vector(X + v.X, Y + v.Y, Z + v.Z);
