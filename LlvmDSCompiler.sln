@@ -5,9 +5,7 @@ VisualStudioVersion = 16.0.29709.97
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LlvmDSCompiler", "LlvmDSCompiler\LlvmDSCompiler.csproj", "{23F338B0-DC2B-47BF-A71E-6FF7B45C11F8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vector", "Vector\Vector.csproj", "{5FED05CB-5974-43E5-8C2A-1238EAB80CBE}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vector2", "Vector2\Vector2.csproj", "{03E70746-1C6C-4F47-A5AA-2FFA2D29CE7D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Vector", "Vector\Vector.csproj", "{5FED05CB-5974-43E5-8C2A-1238EAB80CBE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,10 +21,6 @@ Global
 		{5FED05CB-5974-43E5-8C2A-1238EAB80CBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5FED05CB-5974-43E5-8C2A-1238EAB80CBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5FED05CB-5974-43E5-8C2A-1238EAB80CBE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{03E70746-1C6C-4F47-A5AA-2FFA2D29CE7D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{03E70746-1C6C-4F47-A5AA-2FFA2D29CE7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{03E70746-1C6C-4F47-A5AA-2FFA2D29CE7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{03E70746-1C6C-4F47-A5AA-2FFA2D29CE7D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
