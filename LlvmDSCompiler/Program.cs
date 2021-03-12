@@ -8,16 +8,24 @@ namespace LlvmDSCompiler
     {
         static void Main(string[] args)
         {
-            var text = @"
-def foo : double(a : double, b : double)
-{
-    return a*a + b*b - 2.0*a*b;
-}
-def bar : double(a : double)
-{
-    return foo(a, 1.0 + 3.0) + 3.0*a;
-}";
-            AntlrInputStream inputStream = new AntlrInputStream(text);
+
+            //            var text = @"
+            //def foo : double(a : double, b : double)
+            //{
+            //    return a*a + b*b - 2.0*a*b;
+            //}
+            //def bar : double(a : double)
+            //{
+            //    return foo(a, 1.0 + 3.0) + 3.0*a;
+            //}";
+
+            var text2 = @"
+            def bar : void(x : double, y : double, z : double)
+            {
+                PrintVector(x, y, z);
+            }";
+
+            AntlrInputStream inputStream = new AntlrInputStream(text2);
             DesignScriptLexer designScriptLexer = new DesignScriptLexer(inputStream);
             designScriptLexer.RemoveErrorListeners();
             CommonTokenStream commonTokenStream = new CommonTokenStream(designScriptLexer);

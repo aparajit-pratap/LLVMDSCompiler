@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using LLVMSharp;
@@ -22,8 +23,41 @@ namespace LlvmDSCompiler
 
         private readonly Stack<LLVMValueRef> valueStack = new Stack<LLVMValueRef>();
 
+        // C# delegate used to call into compiled DS code
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void Bar(double x, double y, double z);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void PrintVectorDelegate(double x, double y, double z);
+
+        [AllowReversePInvokeCalls]
+        public static void PrintVector(double x, double y, double z)
+        {
+            Console.WriteLine("Vector for {0}, {1}, {2} is: {3}", x, y, z, Vector.Vector.ByCoordinates(x, y, z));
+            //return Vector.Vector.ByCoordinates(x, y, z);
+        }
+
+        private static LLVMValueRef ReversePInvoke(LLVMBuilderRef builder, LLVMTypeRef callTargetTypeRef, 
+            LLVMValueRef delegateAddressParameter, LLVMValueRef[] args)
+        {
+            var ptrType = LLVM.PointerType(callTargetTypeRef, 0);
+            var delegateAddress = LLVM.BuildAlloca(builder, LLVM.Int64Type(), "delegate.value");
+            var alloca = LLVM.BuildAlloca(builder, ptrType, "delegate.addr");
+            LLVM.BuildStore(builder, delegateAddressParameter, delegateAddress);
+
+            LLVM.BuildStore(builder, 
+                LLVM.BuildIntToPtr(builder, 
+                    LLVM.BuildLoad(builder, delegateAddress, "delegate.addr.load"), 
+                    ptrType, 
+                    "delegate.funcptr"), 
+                alloca);
+
+            return LLVM.BuildCall(builder, LLVM.BuildLoad(builder, alloca, "delegate"), args, string.Empty);
+        }
+
         public override CompilerResult VisitProgram(DesignScriptParser.ProgramContext context)
         {
+
             var success = new LLVMBool(0);
             module = LLVM.ModuleCreateWithName("DesignScript");
             builder = LLVM.CreateBuilder();
@@ -61,7 +95,20 @@ namespace LlvmDSCompiler
             LLVM.AddCFGSimplificationPass(passManager);
 
             LLVM.InitializeFunctionPassManager(passManager);
-#endregion
+            #endregion
+
+            #region External function declarations
+
+            // TODO: hardcoded param and return types
+            var @params = new[] {LLVMTypeRef.DoubleType(), LLVMTypeRef.DoubleType(), LLVMTypeRef.DoubleType()};
+
+            //var vectorType = LLVM.StructType(@params, false);
+            var retType = LLVM.VoidType();
+            var funcDecl = LLVM.AddFunction(
+                module, "PrintVector", LLVM.FunctionType(retType, @params, false));
+            LLVM.SetLinkage(funcDecl, LLVMLinkage.LLVMExternalLinkage);
+
+            #endregion
 
             base.VisitProgram(context);
 
@@ -70,6 +117,13 @@ namespace LlvmDSCompiler
                 Console.WriteLine($"Error: {error}");
             }
 
+            var barMethod = (Bar)Marshal.GetDelegateForFunctionPointer(LLVM.GetPointerToGlobal(engine, valueStack.Peek()), typeof(Bar));
+            barMethod(10, 2, 3);
+
+            if (LLVM.WriteBitcodeToFile(module, "program.bc") != 0)
+            {
+                Console.WriteLine("error writing bitcode to file, skipping");
+            }
             LLVM.DumpModule(module);
             LLVM.DisposeBuilder(builder);
             LLVM.DisposeExecutionEngine(engine);
@@ -101,6 +155,12 @@ namespace LlvmDSCompiler
             foreach (var stmt in stmts)
             {
                 VisitCoreStmt(stmt);
+            }
+            // If last statement is not an explicit return statement,
+            // add a return instr explicitly to close the basic block.
+            if (stmts.Last().returnStmt() == null)
+            {
+                LLVM.BuildRet(this.builder, new LLVMValueRef());
             }
 
             // Validate the generated code, checking for consistency.
@@ -192,6 +252,7 @@ namespace LlvmDSCompiler
                 return new NullCompilerResult();
 
             }
+            
             return base.VisitCoreStmt(context);
         }
 
@@ -257,6 +318,7 @@ namespace LlvmDSCompiler
         {
             var qualifiedIdentContext = context.qualifiedIdent();
             var funcName = qualifiedIdentContext.Ident(0).GetText();
+
             
             var calleeF = LLVM.GetNamedFunction(this.module, funcName);
             if (calleeF.Pointer == IntPtr.Zero)
@@ -267,14 +329,23 @@ namespace LlvmDSCompiler
             var argumentCount = LLVM.CountParams(calleeF);
             var argsV = new LLVMValueRef[argumentCount];
             var args = context.exprList();
+            var argTypes = new LLVMTypeRef[argumentCount];
 
             VisitExprList(args);
             for(var i = 0; i < argumentCount; i++)
             {
-                argsV[argumentCount - 1 - i] = valueStack.Pop();
+                var arg = valueStack.Pop();
+                argsV[argumentCount - 1 - i] = arg;
+                argTypes[argumentCount - 1 - i] = LLVM.TypeOf(arg);
             }
 
-            valueStack.Push(LLVM.BuildCall(this.builder, calleeF, argsV, "calltmp"));
+            //valueStack.Push(LLVM.BuildCall(this.builder, calleeF, argsV, "calltmp"));
+            // TODO: hardcoded return type
+            var callTargetType = LLVM.FunctionType(returnType, argTypes, false);
+            var delegateAddress = (ulong)Marshal.GetFunctionPointerForDelegate(new PrintVectorDelegate(PrintVector));
+            var delegateAddrParam = LLVM.ConstInt(LLVM.Int64Type(), delegateAddress, true);
+            var externFuncCall = ReversePInvoke(builder, callTargetType, delegateAddrParam, argsV);
+            valueStack.Push(externFuncCall);
 
             return new NullCompilerResult();
         }
@@ -387,7 +458,7 @@ namespace LlvmDSCompiler
         {
             var type = VisitTypeName(context.typeName()) as TypeCompilerResult;
             var rank = context.LBRACK().Length;
-            if(rank == 0) return new TypeCompilerResult(type.Type);
+            if(rank == 0) return type;
 
             var arrayType = LLVM.ArrayType((LLVMTypeRef)type.Type, 0);
 
@@ -396,8 +467,17 @@ namespace LlvmDSCompiler
         
         public override CompilerResult VisitTypeName(DesignScriptParser.TypeNameContext context)
         {
-            // TODO: assume only DoubleType for now.
-            return new TypeCompilerResult(LLVM.DoubleType());
+            LLVMTypeRef? type = null;
+            switch (context.GetText())
+            {
+                case "void":
+                    type = LLVMTypeRef.VoidType();
+                    break;
+                case "double":
+                    type = LLVMTypeRef.DoubleType();
+                    break;
+            }
+            return new TypeCompilerResult(type);
         }
 
         public override CompilerResult VisitIdent(DesignScriptParser.IdentContext context)
